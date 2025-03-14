@@ -6,8 +6,8 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const User = require('./Users');
 const Movie = require('./Movies'); // You're not using Movie, consider removing it
-
 const app = express();
+require('dotenv').config();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -68,11 +68,54 @@ router.post('/signin', async (req, res) => { // Use async/await
 });
 
 router.route('/movies')
-    .get(authJwtController.isAuthenticated, async (req, res) => {
-        return res.status(500).json({ success: false, message: 'GET request not supported' });
+    .get(authJwtController.isAuthenticated,async (req, res) => {
+      try {
+        const movies = await Movie.find();
+        res.json(movies);
+      }catch (error) {
+        res.status(500).json({ success: false, msg: 'Error retrieving movies' });
+      }
     })
-    .post(authJwtController.isAuthenticated, async (req, res) => {
-        return res.status(500).json({ success: false, message: 'POST request not supported' });
+    .post(authJwtController.isAuthenticated,async (req, res) =>{
+      const { title, releaseDate, genre, actors } = req.body;
+      if (!title || !releaseDate || !genre || !actors || !Array.isArray(actors) || actors.length === 0) {
+        return res.status(400).json({
+          success: false,
+          msg: "All fields are required. The movie must include a title, release date, genre, and at least one actor."
+        });
+      }
+      try {
+        const newMovie = new Movie(req.body);
+        await newMovie.save();
+        res.status(201).json({ success: true, msg: 'Movie added successfully.', movie: newMovie });
+      }catch (error) {
+        res.status(400).json({ success: false, msg: 'Failed to add movie', error });
+      }
+    })
+    .put(authJwtController.isAuthenticated,async (req, res) =>{
+      try {
+        const updatedMovie = await Movie.findOneAndUpdate(
+            { title: req.body.title }, 
+            req.body, 
+            { new: true }
+        );
+        if (!updatedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
+        res.json({ success: true, msg: 'Movie updated.', movie: updatedMovie });
+        }catch (error) {
+          res.status(400).json({ success: false, msg: 'Failed to update movie', error });
+        }
+    })
+    .delete(authJwtController.isAuthenticated,async (req, res) =>{
+      try {
+        const deletedMovie = await Movie.findOneAndDelete({ title: req.body.title });
+        if (!deletedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
+        res.json({ success: true, msg: 'Movie deleted.' });
+      }catch (error) {
+        res.status(500).json({ success: false, msg: 'Failed to delete movie', error });
+      }
+    })
+    .all((req,res)=>{
+      res.status(405).send({status: 405, message: 'HTTP method not supported'});
     });
 
 app.use('/', router);
