@@ -92,31 +92,43 @@ router.route('/movies')
         res.status(400).json({ success: false, msg: 'Failed to add movie', error });
       }
     })
-    .put(authJwtController.isAuthenticated,async (req, res) =>{
-      try {
-        const updatedMovie = await Movie.findOneAndUpdate(
-            { title: req.body.title }, 
-            req.body, 
-            { new: true }
-        );
-        if (!updatedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
-        res.json({ success: true, msg: 'Movie updated.', movie: updatedMovie });
-        }catch (error) {
-          res.status(400).json({ success: false, msg: 'Failed to update movie', error });
-        }
-    })
-    .delete(authJwtController.isAuthenticated,async (req, res) =>{
-      try {
-        const deletedMovie = await Movie.findOneAndDelete({ title: req.body.title });
-        if (!deletedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
-        res.json({ success: true, msg: 'Movie deleted.' });
-      }catch (error) {
-        res.status(500).json({ success: false, msg: 'Failed to delete movie', error });
-      }
-    })
     .all((req,res)=>{
       res.status(405).send({status: 405, message: 'HTTP method not supported'});
     });
+
+router.route('/movies/:title')
+  .get(authJwtController.isAuthenticated,async (req, res) => {
+    try {
+      const movies = await Movie.findOne({title: req.params.title});
+      if(!movie) return res.status(404).json({success: false, msg:'Movie not found'})
+      res.json(movies);
+    }catch (error) {
+      res.status(500).json({ success: false, msg: 'Error retrieving movie' });
+    }
+  })
+  .put(authJwtController.isAuthenticated,async (req, res) =>{
+    try {
+      const updatedMovie = await Movie.findOneAndUpdate(
+          { title: req.params.title }, 
+          req.body, 
+          { new: true }
+      );
+      if (!updatedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
+      res.json({ success: true, msg: 'Movie updated.', movie: updatedMovie });
+      }catch (error) {
+        res.status(400).json({ success: false, msg: 'Failed to update movie', error });
+      }
+  })
+  .delete(authJwtController.isAuthenticated,async (req, res) =>{
+    try {
+      const deletedMovie = await Movie.findOneAndDelete({ title: req.params.title });
+      if (!deletedMovie) return res.status(404).json({ success: false, msg: 'Movie not found.' });
+      res.json({ success: true, msg: 'Movie deleted.' });
+    }catch (error) {
+      res.status(500).json({ success: false, msg: 'Failed to delete movie', error });
+    }
+  });
+
 
 app.use('/', router);
 
